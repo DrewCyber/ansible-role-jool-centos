@@ -1,0 +1,22 @@
+- name: Generate jool configuration
+  template:
+    dest: "{{ _jool_configuration_directory }}/jool.conf"
+    src: jool.conf.j2
+    mode: 0600
+  notify: restart jool
+
+- name: Create Jool service
+  template:
+    dest: "/etc/systemd/system/jool.service"
+    src: jool.service.j2
+    mode: 0644
+
+- name: Reload systemd to recognize the new service
+  ansible.builtin.systemd:
+    daemon_reload: yes
+
+- name: Start and enable the Jool service
+  ansible.builtin.systemd:
+    name: jool
+    state: started
+    enabled: yes

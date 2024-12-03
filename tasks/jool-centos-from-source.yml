@@ -1,0 +1,111 @@
+- name: Update system packages
+  dnf:
+    name: "*"
+    state: latest
+
+- name: Gather package facts
+  ansible.builtin.package_facts:
+
+- name: Check for new kernel version
+  set_fact:
+    updated_kernel: "{{ ansible_facts.packages['kernel'][-1].version }}-{{ ansible_facts.packages['kernel'][-1].release }}.{{ ansible_facts.packages['kernel'][-1].arch }}"
+
+- name: Get the current running kernel version
+  command: uname -r
+  register: running_kernel
+
+- name: Check if new kernel is installed
+  set_fact:
+    new_kernel_installed: "{{ true if updated_kernel.strip() != running_kernel.stdout.strip() else false }}"
+
+- name: Kernel versions
+  debug:
+    msg:
+      -  "Updated kernel: {{ updated_kernel.strip() }}"
+      -  "Running kernel: {{ running_kernel.stdout.strip() }}"
+  when: new_kernel_installed
+
+- name: Reboot the system if a new kernel is installed
+  reboot:
+    reboot_timeout: 600
+  when: new_kernel_installed
+
+- name: Install EPEL release package
+  dnf:
+    name: epel-release
+    state: present
+
+- name: Install dependencies
+  dnf:
+    name:
+      - gcc
+      - make
+      - elfutils-libelf-devel
+      - kernel-devel
+      - libnl3-devel
+      - iptables-devel
+      - git
+      - automake
+      - libtool
+      - tar
+      - dkms
+    state: present
+
+- name: Download Jool source tarball with _jool_version
+  get_url:
+    url: "https://github.com/NICMx/Jool/releases/download/v{{ _jool_version }}/jool-{{ _jool_version | replace('-', '.') }}.tar.gz"
+    dest: "/tmp/jool-{{ _jool_version }}.tar.gz"
+
+- name: Extract Jool source tarball
+  unarchive:
+    src: "/tmp/jool-{{ _jool_version }}.tar.gz"
+    dest: "/usr/src"
+    remote_src: yes
+
+- name: Check the status of Jool module using DKMS
+  command: /sbin/dkms status jool/{{ _jool_version }}
+  register: jool_status
+  ignore_errors: true
+
+- name: Check if Jool is installed
+  set_fact:
+    jool_installed: "{{ 'installed' in jool_status.stdout }}"
+
+- name: Install Jool kernel module
+  command: /sbin/dkms install jool-{{ _jool_version }}/
+  args:
+    chdir: "/usr/src"
+  when: not jool_installed
+
+- name: Compile and install Jool userspace applications
+  shell: |
+    ./configure
+    make
+    make install
+  args:
+    chdir: "/usr/src/jool-{{ _jool_version }}/"
+    creates: "/usr/local/bin/jool"
+      # - "/usr/local/bin/jool_siit"
+      # - "/usr/local/bin/joold"
+
+- name: Enable IPv4 forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+    state: present
+    reload: yes
+
+- name: Enable IPv6 forwarding
+  sysctl:
+    name: net.ipv6.conf.all.forwarding
+    value: 1
+    state: present
+    reload: yes
+
+- name: Create Jool configuration directory
+  ansible.builtin.file:
+    path: "{{ _jool_configuration_directory }}"
+    owner: root
+    group: root
+    mode: 0755
+    state: directory

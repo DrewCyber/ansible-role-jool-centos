@@ -1,0 +1,18 @@
+{
+        "comment": "Configuration for the systemd NAT64 Jool service.",
+
+        "instance": "default",
+        "framework": "netfilter",
+
+        "global": {
+                "comment": "Sample pool6 prefix",
+                "pool6": "{{ jool_network }}",
+                "lowest-ipv6-mtu": 20000,
+                "maximum-simultaneous-opens": 100
+        },
+
+        "comment": "Sample pool4 table",
+        "pool4": [],
+
+        "bib": []
+}

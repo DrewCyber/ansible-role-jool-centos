@@ -1,0 +1,6 @@
+---
+- hosts: vm
+  roles:
+    - role: ../ansible-role-jool-centos
+  vars:
+    jool_network: 303:fafa:fefe:dede:ff::/96
