@@ -1,4 +1,4 @@
-- name: restart jool
+- name: Restart jool
   service:
     name: jool
     state: restarted

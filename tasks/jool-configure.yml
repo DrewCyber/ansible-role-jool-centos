@@ -3,7 +3,7 @@
     dest: "{{ _jool_configuration_directory }}/jool.conf"
     src: jool.conf.j2
     mode: 0600
-  notify: restart jool
+  notify: Restart jool
 
 - name: Create Jool service
   template:
